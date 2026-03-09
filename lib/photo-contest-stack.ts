@@ -79,13 +79,13 @@ export class PhotoContestStack extends cdk.Stack {
 
     // Lambda functions for each API endpoint
     const healthLambda = new lambda.Function(this, 'HealthLambda', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'health.handler',
       code: lambda.Code.fromAsset('lambda')
     });
 
     const submitPhotoLambda = new lambda.Function(this, 'SubmitPhotoLambda', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'submit-photo.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
@@ -99,7 +99,7 @@ export class PhotoContestStack extends cdk.Stack {
     photoBucket.grantPut(submitPhotoLambda);
 
     const voteLambda = new lambda.Function(this, 'VoteLambda', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'vote.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
@@ -113,7 +113,7 @@ export class PhotoContestStack extends cdk.Stack {
     votesTable.grantReadWriteData(voteLambda);
 
     const getPhotosLambda = new lambda.Function(this, 'GetPhotosLambda', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'get-photos.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
@@ -123,7 +123,7 @@ export class PhotoContestStack extends cdk.Stack {
     photosTable.grantReadData(getPhotosLambda);
 
     const getPhotoLambda = new lambda.Function(this, 'GetPhotoLambda', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'get-photo.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
@@ -133,7 +133,7 @@ export class PhotoContestStack extends cdk.Stack {
     photosTable.grantReadData(getPhotoLambda);
 
     const getWinnerLambda = new lambda.Function(this, 'GetWinnerLambda', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'get-winner.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
@@ -185,7 +185,7 @@ export class PhotoContestStack extends cdk.Stack {
 
     // Scheduled Lambda for monthly contest winner calculation
     const calculateMonthlyWinnerLambda = new lambda.Function(this, 'CalculateMonthlyWinnerLambda', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'calculate-monthly-winner.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
