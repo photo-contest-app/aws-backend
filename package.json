@@ -4,7 +4,16 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "deploy": "cdk deploy"
+    "deploy": "cdk deploy",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.ts"],
+    "setupFiles": ["./tests/setup.ts"],
+    "collectCoverage": true,
+    "coverageDirectory": "coverage"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.0.0",
