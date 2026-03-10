@@ -1,4 +1,4 @@
-import AWSMock from 'aws-sdk-mock';
+import * as AWSMock from 'aws-sdk-mock';
 
 const mockContext = {} as any;
 

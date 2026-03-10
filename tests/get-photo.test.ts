@@ -1,4 +1,4 @@
-import AWSMock from 'aws-sdk-mock';
+import * as AWSMock from 'aws-sdk-mock';
 
 const mockEvent = (id?: string) => ({ pathParameters: id ? { id } : null } as any);
 const mockContext = {} as any;

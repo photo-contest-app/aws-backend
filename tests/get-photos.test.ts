@@ -1,4 +1,4 @@
-import AWSMock from 'aws-sdk-mock';
+import * as AWSMock from 'aws-sdk-mock';
 
 const mockEvent = (user_id?: string) => ({ queryStringParameters: user_id ? { user_id } : null } as any);
 const mockContext = {} as any;
