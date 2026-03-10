@@ -1,6 +1,6 @@
 # Photo Contest Backend
 
-![Tests](https://github.com/aga/aws-backend/actions/workflows/test.yml/badge.svg)
+![Tests](../../actions/workflows/test.yml/badge.svg)
 
 A serverless backend for a monthly photo contest application built with AWS CDK.
 
