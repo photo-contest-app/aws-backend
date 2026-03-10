@@ -3,9 +3,15 @@ const dynamo = new DynamoDB.DocumentClient();
 
 export const handler = async () => {
   const now = new Date();
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const startOfLastMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1).toISOString();
-  const endOfLastMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0, 23, 59, 59).toISOString();
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const year = lastMonthDate.getFullYear();
+  const month = String(lastMonthDate.getMonth() + 1).padStart(2, '0');
+  const monthYear = `${year}-${month}`;
+
+  // Build start/end strings manually to avoid UTC offset issues
+  const daysInMonth = new Date(year, lastMonthDate.getMonth() + 1, 0).getDate();
+  const startOfLastMonth = `${monthYear}-01T00:00:00.000Z`;
+  const endOfLastMonth = `${monthYear}-${String(daysInMonth).padStart(2, '0')}T23:59:59.999Z`;
 
   const photos = await dynamo.scan({
     TableName: process.env.PHOTOS_TABLE!,
@@ -18,8 +24,12 @@ export const handler = async () => {
     }
   }).promise();
 
-  const winner = photos.Items?.sort((a,b) => (b.vote_count||0) - (a.vote_count||0))[0];
-  const monthYear = lastMonth.toISOString().substring(0, 7);
+  // Sort by vote_count descending, then by earliest upload_timestamp as tie-breaker
+  const winner = photos.Items?.sort((a, b) => {
+    const voteDiff = (b.vote_count || 0) - (a.vote_count || 0);
+    if (voteDiff !== 0) return voteDiff;
+    return a.upload_timestamp < b.upload_timestamp ? -1 : 1;
+  })[0];
 
   if (winner) {
     await dynamo.put({

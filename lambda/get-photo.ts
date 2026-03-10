@@ -22,6 +22,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       return { statusCode: 404, body: JSON.stringify({ error: "Photo not found" }) };
     }
 
+    if (result.Item.status !== 'active') {
+      return { statusCode: 404, body: JSON.stringify({ error: "Photo not found" }) };
+    }
+
     return { statusCode: 200, body: JSON.stringify(result.Item) };
   } catch (error) {
     console.error('Error:', error);

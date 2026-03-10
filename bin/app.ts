@@ -4,5 +4,8 @@ import { PhotoContestStack } from '../lib/photo-contest-stack';
 const app = new cdk.App();
 
 new PhotoContestStack(app, 'PhotoContestStack', {
-  env: { region: 'eu-north-1' }
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION ?? 'eu-north-1'
+  }
 });

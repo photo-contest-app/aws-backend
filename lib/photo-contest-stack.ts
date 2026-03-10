@@ -19,17 +19,34 @@ export class PhotoContestStack extends cdk.Stack {
     // DynamoDB tables
     const usersTable = new dynamodb.Table(this, 'UsersTable', {
       partitionKey: { name: 'user_id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
+    });
+
+    usersTable.addGlobalSecondaryIndex({
+      indexName: 'name-index',
+      partitionKey: { name: 'last_name', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'first_name', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL
     });
 
     const photosTable = new dynamodb.Table(this, 'PhotosTable', {
       partitionKey: { name: 'photo_id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
+    });
+
+    photosTable.addGlobalSecondaryIndex({
+      indexName: 'status-timestamp-index',
+      partitionKey: { name: 'status', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'upload_timestamp', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL
     });
 
     const votesTable = new dynamodb.Table(this, 'VotesTable', {
       partitionKey: { name: 'vote_id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
 
     // Index for querying votes by user_id and photo_id
@@ -42,13 +59,16 @@ export class PhotoContestStack extends cdk.Stack {
 
     const winnersTable = new dynamodb.Table(this, 'WinnersTable', {
       partitionKey: { name: 'month_year', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
 
     // S3 bucket for photos
     const photoBucket = new s3.Bucket(this, 'PhotoBucket', {
       publicReadAccess: false,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true
     });
 
     // CloudFront for CDN
@@ -94,7 +114,7 @@ export class PhotoContestStack extends cdk.Stack {
         BUCKET: photoBucket.bucketName
       }
     });
-    photosTable.grantWriteData(submitPhotoLambda);
+    photosTable.grantReadWriteData(submitPhotoLambda);
     usersTable.grantReadWriteData(submitPhotoLambda);
     photoBucket.grantPut(submitPhotoLambda);
 
@@ -117,10 +137,12 @@ export class PhotoContestStack extends cdk.Stack {
       handler: 'get-photos.handler',
       code: lambda.Code.fromAsset('lambda'),
       environment: {
-        PHOTOS_TABLE: photosTable.tableName
+        PHOTOS_TABLE: photosTable.tableName,
+        VOTES_TABLE: votesTable.tableName
       }
     });
     photosTable.grantReadData(getPhotosLambda);
+    votesTable.grantReadData(getPhotosLambda);
 
     const getPhotoLambda = new lambda.Function(this, 'GetPhotoLambda', {
       runtime: lambda.Runtime.NODEJS_24_X,
@@ -143,7 +165,13 @@ export class PhotoContestStack extends cdk.Stack {
     winnersTable.grantReadData(getWinnerLambda);
 
     // API Gateway HTTP API
-    const httpApi = new apigateway.HttpApi(this, 'PhotoApi');
+    const httpApi = new apigateway.HttpApi(this, 'PhotoApi', {
+      corsPreflight: {
+        allowOrigins: ['*'],
+        allowMethods: [apigateway.CorsHttpMethod.ANY],
+        allowHeaders: ['Authorization', 'Content-Type']
+      }
+    });
 
     httpApi.addRoutes({
       path: '/health',
@@ -206,7 +234,7 @@ export class PhotoContestStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'ApiUrl', { value: httpApi.apiEndpoint });
-    new cdk.CfnOutput(this, 'CDNUrl', { value: distribution.domainName });
+    new cdk.CfnOutput(this, 'CDNUrl', { value: `https://${distribution.domainName}` });
     new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
   }

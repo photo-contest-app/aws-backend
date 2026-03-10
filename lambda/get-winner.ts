@@ -8,8 +8,10 @@ const WINNERS_TABLE = process.env.WINNERS_TABLE!;
 export const handler: APIGatewayProxyHandler = async () => {
   try {
     const now = new Date();
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const monthYear = lastMonth.toISOString().substring(0, 7);
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const year = lastMonthDate.getFullYear();
+    const month = String(lastMonthDate.getMonth() + 1).padStart(2, '0');
+    const monthYear = `${year}-${month}`;
 
     const result = await dynamo.get({
       TableName: WINNERS_TABLE,
