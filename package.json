@@ -12,6 +12,7 @@
     "testEnvironment": "node",
     "testMatch": ["**/tests/**/*.test.ts"],
     "setupFiles": ["./tests/setup.ts"],
+    "forceExit": true,
     "collectCoverage": true,
     "coverageDirectory": "coverage"
   },
