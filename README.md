@@ -27,6 +27,7 @@ Users submit one photo per month, vote on other users' submissions, and a winner
 |---|---|---|
 | `GET` | `/health` | Health check |
 | `POST` | `/register` | Register a new user with Cognito |
+| `POST` | `/verify` | Verify email with code sent by Cognito |
 | `POST` | `/login` | Login and get JWT tokens |
 | `POST` | `/logout` | Logout and invalidate all user tokens |
 | `GET` | `/photos?user_id=<id>` | List active photos for the current month, excluding the user's own and already-voted photos |
@@ -48,6 +49,17 @@ Users submit one photo per month, vote on other users' submissions, and a winner
 
 // Response 201
 { "message": "User registered successfully. Please check your email to verify your account.", "user_id": "abc123..." }
+```
+
+> **Note:** After registration, Cognito sends a 6-digit verification code to the user's email.
+
+**POST /verify**
+```json
+// Request
+{ "email": "user@example.com", "code": "123456" }
+
+// Response 200
+{ "message": "Email verified successfully" }
 ```
 
 **POST /login**

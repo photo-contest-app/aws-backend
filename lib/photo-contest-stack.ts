@@ -148,6 +148,19 @@ export class PhotoContestStack extends cdk.Stack {
       resources: [userPool.userPoolArn]
     }));
 
+    const verifyLambda = new NodejsFunction(this, 'VerifyLambda', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      entry: path.join(__dirname, '../lambda/verify.ts'),
+      handler: 'handler',
+      environment: {
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId
+      }
+    });
+    verifyLambda.addToRolePolicy(new cdk.aws_iam.PolicyStatement({
+      actions: ['cognito-idp:ConfirmSignUp'],
+      resources: [userPool.userPoolArn]
+    }));
+
     const submitPhotoLambda = new NodejsFunction(this, 'SubmitPhotoLambda', {
       runtime: lambda.Runtime.NODEJS_24_X,
       entry: path.join(__dirname, '../lambda/submit-photo.ts'),
@@ -245,6 +258,12 @@ export class PhotoContestStack extends cdk.Stack {
       path: '/logout',
       methods: [apigateway.HttpMethod.POST],
       integration: new integrations.HttpLambdaIntegration('LogoutIntegration', logoutLambda)
+    });
+
+    httpApi.addRoutes({
+      path: '/verify',
+      methods: [apigateway.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('VerifyIntegration', verifyLambda)
     });
 
     httpApi.addRoutes({
