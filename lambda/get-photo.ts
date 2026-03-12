@@ -4,6 +4,7 @@ import * as AWS from 'aws-sdk';
 const dynamo = new AWS.DynamoDB.DocumentClient();
 
 const PHOTOS_TABLE = process.env.PHOTOS_TABLE!;
+const CDN_URL = process.env.CDN_URL!;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -32,7 +33,13 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ error: "Photo not found" }) };
     }
 
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result.Item) };
+    // Add CloudFront URL to photo
+    const photoWithUrl = {
+      ...result.Item,
+      image_url: `${CDN_URL}/${result.Item.s3_key}`
+    };
+
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(photoWithUrl) };
   } catch (error) {
     console.error('Error:', error);
     return {

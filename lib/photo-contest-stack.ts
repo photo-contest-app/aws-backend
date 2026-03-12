@@ -172,7 +172,22 @@ export class PhotoContestStack extends cdk.Stack {
       },
       bundling: {
         nodeModules: ['sharp'],
-        forceDockerBundling: false
+        forceDockerBundling: true, // Required to build Sharp for Linux x64 runtime
+        commandHooks: {
+          beforeBundling(_inputDir: string, _outputDir: string): string[] {
+            return [];
+          },
+          beforeInstall(_inputDir: string, _outputDir: string): string[] {
+            return [];
+          },
+          afterBundling(_inputDir: string, _outputDir: string): string[] {
+            return [
+              'cd /asset-output',
+              'rm -rf node_modules/sharp',
+              'npm install --arch=x64 --platform=linux --libc=glibc sharp'
+            ];
+          }
+        }
       },
       memorySize: 1024, // Sharp requires more memory for image processing
       timeout: cdk.Duration.seconds(30)
@@ -201,7 +216,8 @@ export class PhotoContestStack extends cdk.Stack {
       handler: 'handler',
       environment: {
         PHOTOS_TABLE: photosTable.tableName,
-        VOTES_TABLE: votesTable.tableName
+        VOTES_TABLE: votesTable.tableName,
+        CDN_URL: `https://${distribution.domainName}`
       }
     });
     photosTable.grantReadData(getPhotosLambda);
@@ -212,7 +228,8 @@ export class PhotoContestStack extends cdk.Stack {
       entry: path.join(__dirname, '../lambda/get-photo.ts'),
       handler: 'handler',
       environment: {
-        PHOTOS_TABLE: photosTable.tableName
+        PHOTOS_TABLE: photosTable.tableName,
+        CDN_URL: `https://${distribution.domainName}`
       }
     });
     photosTable.grantReadData(getPhotoLambda);
@@ -222,7 +239,8 @@ export class PhotoContestStack extends cdk.Stack {
       entry: path.join(__dirname, '../lambda/get-winner.ts'),
       handler: 'handler',
       environment: {
-        WINNERS_TABLE: winnersTable.tableName
+        WINNERS_TABLE: winnersTable.tableName,
+        CDN_URL: `https://${distribution.domainName}`
       }
     });
     winnersTable.grantReadData(getWinnerLambda);

@@ -5,6 +5,7 @@ const dynamo = new AWS.DynamoDB.DocumentClient();
 
 const PHOTOS_TABLE = process.env.PHOTOS_TABLE!;
 const VOTES_TABLE = process.env.VOTES_TABLE!;
+const CDN_URL = process.env.CDN_URL!;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -55,7 +56,13 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       !votedPhotoIds.has(photo.photo_id) && photo.user_id !== user_id
     );
 
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(unvotedPhotos) };
+    // Add CloudFront URL to each photo
+    const photosWithUrls = unvotedPhotos.map(photo => ({
+      ...photo,
+      image_url: `${CDN_URL}/${photo.s3_key}`
+    }));
+
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(photosWithUrls) };
   } catch (error) {
     console.error('Error:', error);
     return {

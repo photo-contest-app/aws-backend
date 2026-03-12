@@ -4,6 +4,7 @@ import * as AWS from 'aws-sdk';
 const dynamo = new AWS.DynamoDB.DocumentClient();
 
 const WINNERS_TABLE = process.env.WINNERS_TABLE!;
+const CDN_URL = process.env.CDN_URL!;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -28,7 +29,13 @@ export const handler: APIGatewayProxyHandler = async () => {
       return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ error: "No winner found for last month" }) };
     }
 
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result.Item) };
+    // Add CloudFront URL to winner photo
+    const winnerWithUrl = {
+      ...result.Item,
+      image_url: `${CDN_URL}/${result.Item.s3_key}`
+    };
+
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(winnerWithUrl) };
   } catch (error) {
     console.error('Error:', error);
     return {
