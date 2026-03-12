@@ -105,7 +105,7 @@ After deployment, the CDK outputs will print:
 - `CDNUrl` — CloudFront distribution URL (`https://...`)
 - `UserPoolId` — Cognito User Pool ID
 - `UserPoolClientId` — Cognito User Pool Client ID
-
+ 
 ## Configuration
 
 | Setting | Value |
