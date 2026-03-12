@@ -1,5 +1,15 @@
 import * as AWSMock from 'aws-sdk-mock';
 
+// Mock sharp before any other imports
+jest.mock('sharp', () => {
+  return jest.fn(() => ({
+    metadata: jest.fn().mockResolvedValue({ width: 800, height: 600, format: 'jpeg' }),
+    resize: jest.fn().mockReturnThis(),
+    jpeg: jest.fn().mockReturnThis(),
+    toBuffer: jest.fn().mockResolvedValue(Buffer.from('fake-processed-jpeg-data'))
+  }));
+});
+
 const mockContext = {} as any;
 const makeEvent = (body: object) => ({ body: JSON.stringify(body) } as any);
 
@@ -71,16 +81,6 @@ describe('submit-photo', () => {
     AWSMock.mock('DynamoDB.DocumentClient', 'scan', (_p: any, cb: Function) => cb(null, { Items: [] }));
     AWSMock.mock('DynamoDB.DocumentClient', 'put', (_p: any, cb: Function) => cb(null, {}));
     AWSMock.mock('S3', 'putObject', (params: any, cb: Function) => { capturedS3Params = params; cb(null, {}); });
-
-    // Mock sharp to avoid actual image processing in tests
-    jest.mock('sharp', () => {
-      return jest.fn(() => ({
-        metadata: jest.fn().mockResolvedValue({ width: 800, height: 600 }),
-        resize: jest.fn().mockReturnThis(),
-        jpeg: jest.fn().mockReturnThis(),
-        toBuffer: jest.fn().mockResolvedValue(Buffer.from('fake-jpeg-data'))
-      }));
-    });
 
     const { handler } = require('../lambda/submit-photo');
     await handler(makeEvent({ user_id: 'u1', title: 'PNG Photo', image_data: 'data:image/png;base64,iVBORw0KGgo=' }), mockContext, () => {});
