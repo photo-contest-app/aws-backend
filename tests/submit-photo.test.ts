@@ -65,16 +65,27 @@ describe('submit-photo', () => {
     expect(body.photo_id).toBeDefined();
   });
 
-  it('derives correct content type from PNG data URI', async () => {
+  it('converts all images to JPEG after processing', async () => {
     let capturedS3Params: any;
     AWSMock.mock('DynamoDB.DocumentClient', 'get', (_p: any, cb: Function) => cb(null, { Item: { user_id: 'u1' } }));
     AWSMock.mock('DynamoDB.DocumentClient', 'scan', (_p: any, cb: Function) => cb(null, { Items: [] }));
     AWSMock.mock('DynamoDB.DocumentClient', 'put', (_p: any, cb: Function) => cb(null, {}));
     AWSMock.mock('S3', 'putObject', (params: any, cb: Function) => { capturedS3Params = params; cb(null, {}); });
+
+    // Mock sharp to avoid actual image processing in tests
+    jest.mock('sharp', () => {
+      return jest.fn(() => ({
+        metadata: jest.fn().mockResolvedValue({ width: 800, height: 600 }),
+        resize: jest.fn().mockReturnThis(),
+        jpeg: jest.fn().mockReturnThis(),
+        toBuffer: jest.fn().mockResolvedValue(Buffer.from('fake-jpeg-data'))
+      }));
+    });
+
     const { handler } = require('../lambda/submit-photo');
     await handler(makeEvent({ user_id: 'u1', title: 'PNG Photo', image_data: 'data:image/png;base64,iVBORw0KGgo=' }), mockContext, () => {});
-    expect(capturedS3Params.ContentType).toBe('image/png');
-    expect(capturedS3Params.Key).toMatch(/\.png$/);
+    expect(capturedS3Params.ContentType).toBe('image/jpeg');
+    expect(capturedS3Params.Key).toMatch(/\.jpg$/);
   });
 
   it('returns 500 on DynamoDB error', async () => {

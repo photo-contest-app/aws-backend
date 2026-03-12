@@ -95,6 +95,8 @@ Users submit one photo per month, vote on other users' submissions, and a winner
 ## Business Rules
 
 - A user can submit **one active photo per month**.
+- Images are **automatically resized** if any dimension exceeds **1000px** (aspect ratio maintained).
+- All uploaded images are **converted to JPEG** format for consistency.
 - A user **cannot vote for their own photo**.
 - A user **cannot vote twice** for the same photo.
 - Voting is only allowed on photos from the **current month**.
@@ -240,6 +242,8 @@ curl -X POST <API_URL>/submit-photo \
   "message": "Photo uploaded successfully"
 }
 ```
+
+> **Note:** Images are automatically resized to a maximum of 1000px on any side (maintaining aspect ratio) and converted to JPEG format.
 
 ### Get photos to vote on
 ```bash

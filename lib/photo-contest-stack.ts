@@ -156,7 +156,13 @@ export class PhotoContestStack extends cdk.Stack {
         PHOTOS_TABLE: photosTable.tableName,
         USERS_TABLE: usersTable.tableName,
         BUCKET: photoBucket.bucketName
-      }
+      },
+      bundling: {
+        nodeModules: ['sharp'],
+        forceDockerBundling: false
+      },
+      memorySize: 1024, // Sharp requires more memory for image processing
+      timeout: cdk.Duration.seconds(30)
     });
     photosTable.grantReadWriteData(submitPhotoLambda);
     usersTable.grantReadData(submitPhotoLambda);
