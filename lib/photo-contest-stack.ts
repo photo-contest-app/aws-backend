@@ -109,6 +109,35 @@ export class PhotoContestStack extends cdk.Stack {
       handler: 'handler',
     });
 
+    const registerLambda = new NodejsFunction(this, 'RegisterLambda', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      entry: path.join(__dirname, '../lambda/register.ts'),
+      handler: 'handler',
+      environment: {
+        USER_POOL_ID: userPool.userPoolId,
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        USERS_TABLE: usersTable.tableName
+      }
+    });
+    usersTable.grantWriteData(registerLambda);
+    registerLambda.addToRolePolicy(new cdk.aws_iam.PolicyStatement({
+      actions: ['cognito-idp:SignUp'],
+      resources: [userPool.userPoolArn]
+    }));
+
+    const loginLambda = new NodejsFunction(this, 'LoginLambda', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      entry: path.join(__dirname, '../lambda/login.ts'),
+      handler: 'handler',
+      environment: {
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId
+      }
+    });
+    loginLambda.addToRolePolicy(new cdk.aws_iam.PolicyStatement({
+      actions: ['cognito-idp:InitiateAuth'],
+      resources: [userPool.userPoolArn]
+    }));
+
     const submitPhotoLambda = new NodejsFunction(this, 'SubmitPhotoLambda', {
       runtime: lambda.Runtime.NODEJS_24_X,
       entry: path.join(__dirname, '../lambda/submit-photo.ts'),
@@ -182,6 +211,18 @@ export class PhotoContestStack extends cdk.Stack {
       path: '/health',
       methods: [apigateway.HttpMethod.GET],
       integration: new integrations.HttpLambdaIntegration('HealthIntegration', healthLambda)
+    });
+
+    httpApi.addRoutes({
+      path: '/register',
+      methods: [apigateway.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('RegisterIntegration', registerLambda)
+    });
+
+    httpApi.addRoutes({
+      path: '/login',
+      methods: [apigateway.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('LoginIntegration', loginLambda)
     });
 
     httpApi.addRoutes({
