@@ -12,6 +12,7 @@ beforeEach(() => {
   jest.resetModules();
   AWSMock.setSDKInstance(require('aws-sdk'));
   process.env.WINNERS_TABLE = 'WinnersTable';
+  process.env.CDN_URL = 'https://test-cdn.cloudfront.net';
 });
 
 afterEach(() => {
@@ -28,7 +29,7 @@ describe('get-winner', () => {
   });
 
   it('returns 200 with winner data for last month key', async () => {
-    const winner = { month_year: LAST_MONTH_YEAR, photo_id: 'p1', user_id: 'u1', vote_count: 10 };
+    const winner = { month_year: LAST_MONTH_YEAR, photo_id: 'p1', user_id: 'u1', vote_count: 10, s3_key: 'photos/p1.jpg' };
     AWSMock.mock('DynamoDB.DocumentClient', 'get', (params: any, cb: Function) => {
       expect(params.Key.month_year).toBe(LAST_MONTH_YEAR);
       cb(null, { Item: winner });
@@ -36,7 +37,9 @@ describe('get-winner', () => {
     const { handler } = require('../lambda/get-winner');
     const result = await handler({} as any, mockContext, () => {});
     expect(result.statusCode).toBe(200);
-    expect(JSON.parse(result.body)).toEqual(winner);
+    const body = JSON.parse(result.body);
+    expect(body).toMatchObject(winner);
+    expect(body.image_url).toBe('https://test-cdn.cloudfront.net/photos/p1.jpg');
   });
 
   it('returns 500 on DynamoDB error', async () => {

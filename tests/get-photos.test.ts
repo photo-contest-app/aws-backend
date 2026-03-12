@@ -13,6 +13,7 @@ beforeEach(() => {
   AWSMock.setSDKInstance(require('aws-sdk'));
   process.env.PHOTOS_TABLE = 'PhotosTable';
   process.env.VOTES_TABLE = 'VotesTable';
+  process.env.CDN_URL = 'https://test-cdn.cloudfront.net';
 });
 
 afterEach(() => {
@@ -31,9 +32,9 @@ describe('get-photos', () => {
 
   it('returns photos filtered by voted and own photos', async () => {
     const photos = [
-      { photo_id: 'p1', user_id: 'user-1', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-01T10:00:00.000Z` },
-      { photo_id: 'p2', user_id: 'user-2', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-02T10:00:00.000Z` },
-      { photo_id: 'p3', user_id: 'user-3', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-03T10:00:00.000Z` },
+      { photo_id: 'p1', user_id: 'user-1', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-01T10:00:00.000Z`, s3_key: 'photos/p1.jpg' },
+      { photo_id: 'p2', user_id: 'user-2', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-02T10:00:00.000Z`, s3_key: 'photos/p2.jpg' },
+      { photo_id: 'p3', user_id: 'user-3', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-03T10:00:00.000Z`, s3_key: 'photos/p3.jpg' },
     ];
     AWSMock.mock('DynamoDB.DocumentClient', 'scan', (_p: any, cb: Function) => cb(null, { Items: photos }));
     AWSMock.mock('DynamoDB.DocumentClient', 'query', (_p: any, cb: Function) =>
@@ -45,6 +46,7 @@ describe('get-photos', () => {
     const body = JSON.parse(result.body);
     expect(body).toHaveLength(1);
     expect(body[0].photo_id).toBe('p3');
+    expect(body[0].image_url).toBe('https://test-cdn.cloudfront.net/photos/p3.jpg');
   });
 
   it('returns empty array when all photos are voted or own', async () => {

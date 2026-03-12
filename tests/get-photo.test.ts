@@ -7,6 +7,7 @@ beforeEach(() => {
   jest.resetModules();
   AWSMock.setSDKInstance(require('aws-sdk'));
   process.env.PHOTOS_TABLE = 'PhotosTable';
+  process.env.CDN_URL = 'https://test-cdn.cloudfront.net';
 });
 
 afterEach(() => {
@@ -39,12 +40,14 @@ describe('get-photo', () => {
   });
 
   it('returns 200 with photo when active', async () => {
-    const photo = { photo_id: 'photo-123', status: 'active', title: 'Test' };
+    const photo = { photo_id: 'photo-123', status: 'active', title: 'Test', s3_key: 'photos/photo-123.jpg' };
     AWSMock.mock('DynamoDB.DocumentClient', 'get', (_p: any, cb: Function) => cb(null, { Item: photo }));
     const { handler } = require('../lambda/get-photo');
     const result = await handler(mockEvent('photo-123'), mockContext, () => {});
     expect(result.statusCode).toBe(200);
-    expect(JSON.parse(result.body)).toEqual(photo);
+    const body = JSON.parse(result.body);
+    expect(body).toMatchObject(photo);
+    expect(body.image_url).toBe('https://test-cdn.cloudfront.net/photos/photo-123.jpg');
   });
 
   it('returns 500 on DynamoDB error', async () => {
