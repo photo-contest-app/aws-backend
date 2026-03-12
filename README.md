@@ -28,6 +28,7 @@ Users submit one photo per month, vote on other users' submissions, and a winner
 | `GET` | `/health` | Health check |
 | `POST` | `/register` | Register a new user with Cognito |
 | `POST` | `/login` | Login and get JWT tokens |
+| `POST` | `/logout` | Logout and invalidate all user tokens |
 | `GET` | `/photos?user_id=<id>` | List active photos for the current month, excluding the user's own and already-voted photos |
 | `GET` | `/photos/{id}` | Get a single active photo |
 | `GET` | `/winner/last-month` | Get last month's winner |
@@ -62,6 +63,15 @@ Users submit one photo per month, vote on other users' submissions, and a winner
   "refresh_token": "eyJjdHkiOiJ...",
   "expires_in": 3600
 }
+```
+
+**POST /logout**
+```json
+// Request (requires Authorization header with access_token from /login)
+// No body needed
+
+// Response 200
+{ "message": "Logout successful" }
 ```
 
 **POST /submit-photo**
@@ -190,6 +200,23 @@ curl -X POST <API_URL>/login \
 ```
 
 Save the `token` value — you'll need it for authenticated endpoints.
+
+### Logout
+```bash
+TOKEN="<token_from_login>"
+
+curl -X POST <API_URL>/logout \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Response:**
+```json
+{
+  "message": "Logout successful"
+}
+```
+
+> **Note:** This invalidates all tokens for the user (IdToken, AccessToken, RefreshToken). They will need to login again.
 
 ### Submit a photo (authenticated)
 ```bash

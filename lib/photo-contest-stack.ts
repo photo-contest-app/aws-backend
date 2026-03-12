@@ -138,6 +138,16 @@ export class PhotoContestStack extends cdk.Stack {
       resources: [userPool.userPoolArn]
     }));
 
+    const logoutLambda = new NodejsFunction(this, 'LogoutLambda', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      entry: path.join(__dirname, '../lambda/logout.ts'),
+      handler: 'handler'
+    });
+    logoutLambda.addToRolePolicy(new cdk.aws_iam.PolicyStatement({
+      actions: ['cognito-idp:GlobalSignOut'],
+      resources: [userPool.userPoolArn]
+    }));
+
     const submitPhotoLambda = new NodejsFunction(this, 'SubmitPhotoLambda', {
       runtime: lambda.Runtime.NODEJS_24_X,
       entry: path.join(__dirname, '../lambda/submit-photo.ts'),
@@ -223,6 +233,12 @@ export class PhotoContestStack extends cdk.Stack {
       path: '/login',
       methods: [apigateway.HttpMethod.POST],
       integration: new integrations.HttpLambdaIntegration('LoginIntegration', loginLambda)
+    });
+
+    httpApi.addRoutes({
+      path: '/logout',
+      methods: [apigateway.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('LogoutIntegration', logoutLambda)
     });
 
     httpApi.addRoutes({
