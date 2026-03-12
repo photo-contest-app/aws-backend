@@ -27,7 +27,7 @@ coverage/
 junit.xml
 
 # We don't want tsconfig at the root
-/tsconfig.json
+# /tsconfig.json
 
 # CDK Context & Staging files
 cdk.context.json

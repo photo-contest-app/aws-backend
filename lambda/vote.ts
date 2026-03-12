@@ -7,13 +7,19 @@ const PHOTOS_TABLE = process.env.PHOTOS_TABLE!;
 const USERS_TABLE = process.env.USERS_TABLE!;
 const VOTES_TABLE = process.env.VOTES_TABLE!;
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Content-Type': 'application/json'
+};
+
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
     const { user_id, photo_id } = body;
 
     if (!user_id || !photo_id) {
-      return { statusCode: 400, body: JSON.stringify({ error: "user_id and photo_id are required" }) };
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: "user_id and photo_id are required" }) };
     }
 
     // Verify the user exists
@@ -23,7 +29,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }).promise();
 
     if (!userResult.Item) {
-      return { statusCode: 404, body: JSON.stringify({ error: "User not found" }) };
+      return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ error: "User not found" }) };
     }
 
     // Verify the photo exists and is active
@@ -33,19 +39,19 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }).promise();
 
     if (!photoResult.Item || photoResult.Item.status !== 'active') {
-      return { statusCode: 404, body: JSON.stringify({ error: "Photo not found" }) };
+      return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ error: "Photo not found" }) };
     }
 
     // Prevent voting on own photo
     if (photoResult.Item.user_id === user_id) {
-      return { statusCode: 403, body: JSON.stringify({ error: "You cannot vote for your own photo" }) };
+      return { statusCode: 403, headers: CORS_HEADERS, body: JSON.stringify({ error: "You cannot vote for your own photo" }) };
     }
 
     // Verify photo is from the current contest month
     const now = new Date();
     const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     if (!photoResult.Item.upload_timestamp.startsWith(yearMonth)) {
-      return { statusCode: 400, body: JSON.stringify({ error: "You can only vote for photos from the current month" }) };
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: "You can only vote for photos from the current month" }) };
     }
 
     // Check if user already voted for this photo
@@ -60,7 +66,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }).promise();
 
     if (existingVotes.Items && existingVotes.Items.length > 0) {
-      return { statusCode: 409, body: JSON.stringify({ error: "You have already voted for this photo" }) };
+      return { statusCode: 409, headers: CORS_HEADERS, body: JSON.stringify({ error: "You have already voted for this photo" }) };
     }
 
     const vote_id = `${user_id}-${photo_id}-${Date.now()}`;
@@ -87,11 +93,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }).promise();
 
-    return { statusCode: 200, body: JSON.stringify({ message: "Vote registered" }) };
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ message: "Vote registered" }) };
   } catch (error) {
     console.error('Error:', error);
     return {
       statusCode: 500,
+      headers: CORS_HEADERS,
       body: JSON.stringify({ error: "Internal server error", message: (error as Error).message })
     };
   }

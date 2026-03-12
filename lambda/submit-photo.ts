@@ -8,13 +8,19 @@ const PHOTOS_TABLE = process.env.PHOTOS_TABLE!;
 const USERS_TABLE = process.env.USERS_TABLE!;
 const BUCKET = process.env.BUCKET!;
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Content-Type': 'application/json'
+};
+
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
     const { user_id, title, description, image_data } = body;
 
     if (!user_id || !title || !image_data) {
-      return { statusCode: 400, body: JSON.stringify({ error: "user_id, title, and image_data are required" }) };
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: "user_id, title, and image_data are required" }) };
     }
 
     // Verify the user exists
@@ -24,7 +30,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }).promise();
 
     if (!userResult.Item) {
-      return { statusCode: 404, body: JSON.stringify({ error: "User not found" }) };
+      return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ error: "User not found" }) };
     }
 
     // Check for duplicate submission in the same month
@@ -43,7 +49,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }).promise();
 
     if (existingPhotos.Items && existingPhotos.Items.length > 0) {
-      return { statusCode: 409, body: JSON.stringify({ error: "You have already submitted a photo this month" }) };
+      return { statusCode: 409, headers: CORS_HEADERS, body: JSON.stringify({ error: "You have already submitted a photo this month" }) };
     }
 
     // Derive content type from base64 data URI
@@ -81,6 +87,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     return {
       statusCode: 200,
+      headers: CORS_HEADERS,
       body: JSON.stringify({
         photo_id,
         message: "Photo uploaded successfully"
@@ -90,6 +97,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     console.error('Error:', error);
     return {
       statusCode: 500,
+      headers: CORS_HEADERS,
       body: JSON.stringify({ error: "Internal server error", message: (error as Error).message })
     };
   }

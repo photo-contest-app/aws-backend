@@ -11,6 +11,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as iam from 'aws-cdk-lib/aws-iam';
 
 export class PhotoContestStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -118,7 +119,7 @@ export class PhotoContestStack extends cdk.Stack {
       }
     });
     photosTable.grantReadWriteData(submitPhotoLambda);
-    usersTable.grantReadWriteData(submitPhotoLambda);
+    usersTable.grantReadData(submitPhotoLambda);  // read-only: we only verify user exists
     photoBucket.grantPut(submitPhotoLambda);
 
     const voteLambda = new lambda.Function(this, 'VoteLambda', {
@@ -221,13 +222,11 @@ export class PhotoContestStack extends cdk.Stack {
       code: lambda.Code.fromAsset('lambda'),
       environment: {
         PHOTOS_TABLE: photosTable.tableName,
-        VOTES_TABLE: votesTable.tableName,
         WINNERS_TABLE: winnersTable.tableName
       }
     });
 
     photosTable.grantReadWriteData(calculateMonthlyWinnerLambda);
-    votesTable.grantReadWriteData(calculateMonthlyWinnerLambda);
     winnersTable.grantWriteData(calculateMonthlyWinnerLambda);
 
     // Schedule Lambda to run on 8th day of each month at 00:00 UTC
@@ -240,5 +239,127 @@ export class PhotoContestStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CDNUrl', { value: `https://${distribution.domainName}` });
     new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
+
+    // IAM user for CI/CD deployment
+    const deployUser = new iam.User(this, 'DeployUser', {
+      userName: 'photo-contest-deploy',
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AWSCloudFormationFullAccess'),
+      ]
+    });
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'LambdaAccess',
+      actions: [
+        'lambda:CreateFunction', 'lambda:UpdateFunctionCode', 'lambda:UpdateFunctionConfiguration',
+        'lambda:DeleteFunction', 'lambda:GetFunction', 'lambda:ListFunctions',
+        'lambda:AddPermission', 'lambda:RemovePermission', 'lambda:GetPolicy',
+        'lambda:PublishLayerVersion', 'lambda:DeleteLayerVersion',
+        'lambda:TagResource', 'lambda:UntagResource'
+      ],
+      resources: ['*']
+    }));
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'DynamoDBAccess',
+      actions: [
+        'dynamodb:CreateTable', 'dynamodb:DeleteTable', 'dynamodb:DescribeTable',
+        'dynamodb:UpdateTable', 'dynamodb:ListTables', 'dynamodb:TagResource',
+        'dynamodb:UntagResource', 'dynamodb:DescribeTimeToLive', 'dynamodb:UpdateTimeToLive'
+      ],
+      resources: ['*']
+    }));
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'S3Access',
+      actions: [
+        's3:CreateBucket', 's3:DeleteBucket', 's3:PutBucketPolicy', 's3:DeleteBucketPolicy',
+        's3:PutBucketPublicAccessBlock', 's3:PutBucketTagging', 's3:GetBucketPolicy',
+        's3:GetBucketLocation', 's3:ListBucket', 's3:PutObject', 's3:DeleteObject',
+        's3:GetObject', 's3:PutEncryptionConfiguration', 's3:PutBucketVersioning',
+        's3:PutBucketNotification', 's3:GetBucketNotification'
+      ],
+      resources: ['*']
+    }));
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'APIGatewayAccess',
+      actions: ['apigateway:*'],
+      resources: ['*']
+    }));
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'CognitoAccess',
+      actions: [
+        'cognito-idp:CreateUserPool', 'cognito-idp:DeleteUserPool', 'cognito-idp:DescribeUserPool',
+        'cognito-idp:UpdateUserPool', 'cognito-idp:CreateUserPoolClient',
+        'cognito-idp:DeleteUserPoolClient', 'cognito-idp:DescribeUserPoolClient',
+        'cognito-idp:UpdateUserPoolClient', 'cognito-idp:TagResource', 'cognito-idp:UntagResource'
+      ],
+      resources: ['*']
+    }));
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'CloudFrontAccess',
+      actions: [
+        'cloudfront:CreateDistribution', 'cloudfront:DeleteDistribution',
+        'cloudfront:GetDistribution', 'cloudfront:UpdateDistribution',
+        'cloudfront:TagResource', 'cloudfront:UntagResource',
+        'cloudfront:CreateOriginAccessControl', 'cloudfront:DeleteOriginAccessControl',
+        'cloudfront:GetOriginAccessControl', 'cloudfront:UpdateOriginAccessControl',
+        'cloudfront:ListOriginAccessControls'
+      ],
+      resources: ['*']
+    }));
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'EventBridgeAccess',
+      actions: [
+        'events:PutRule', 'events:DeleteRule', 'events:DescribeRule',
+        'events:PutTargets', 'events:RemoveTargets', 'events:TagResource',
+        'events:UntagResource', 'events:ListTargetsByRule'
+      ],
+      resources: ['*']
+    }));
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'IAMAccess',
+      actions: [
+        'iam:CreateRole', 'iam:DeleteRole', 'iam:GetRole', 'iam:PassRole',
+        'iam:AttachRolePolicy', 'iam:DetachRolePolicy', 'iam:PutRolePolicy',
+        'iam:DeleteRolePolicy', 'iam:GetRolePolicy', 'iam:TagRole', 'iam:UntagRole',
+        'iam:CreatePolicy', 'iam:DeletePolicy', 'iam:GetPolicy', 'iam:GetPolicyVersion',
+        'iam:ListPolicyVersions', 'iam:CreatePolicyVersion', 'iam:DeletePolicyVersion',
+        'iam:ListAttachedRolePolicies', 'iam:ListRolePolicies',
+        'iam:CreateInstanceProfile', 'iam:DeleteInstanceProfile',
+        'iam:AddRoleToInstanceProfile', 'iam:RemoveRoleFromInstanceProfile'
+      ],
+      resources: ['*']
+    }));
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'SSMBootstrap',
+      actions: ['ssm:GetParameter', 'ssm:GetParameters'],
+      resources: [`arn:aws:ssm:*:*:parameter/cdk-bootstrap/*`]
+    }));
+
+    deployUser.addToPolicy(new iam.PolicyStatement({
+      sid: 'ECRBootstrap',
+      actions: ['ecr:GetAuthorizationToken'],
+      resources: ['*']
+    }));
+
+    const deployUserAccessKey = new iam.CfnAccessKey(this, 'DeployUserAccessKey', {
+      userName: deployUser.userName
+    });
+
+    new cdk.CfnOutput(this, 'DeployUserAccessKeyId', {
+      value: deployUserAccessKey.ref,
+      description: 'AWS_ACCESS_KEY_ID for CI/CD'
+    });
+    new cdk.CfnOutput(this, 'DeployUserSecretAccessKey', {
+      value: deployUserAccessKey.attrSecretAccessKey,
+      description: 'AWS_SECRET_ACCESS_KEY for CI/CD — store this securely, it will not be shown again'
+    });
   }
 }

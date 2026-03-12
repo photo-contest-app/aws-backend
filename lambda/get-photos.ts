@@ -6,12 +6,18 @@ const dynamo = new AWS.DynamoDB.DocumentClient();
 const PHOTOS_TABLE = process.env.PHOTOS_TABLE!;
 const VOTES_TABLE = process.env.VOTES_TABLE!;
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Content-Type': 'application/json'
+};
+
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const user_id = event.queryStringParameters?.user_id;
 
     if (!user_id) {
-      return { statusCode: 400, body: JSON.stringify({ error: "user_id is required" }) };
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: "user_id is required" }) };
     }
 
     // Get current month in YYYY-MM format
@@ -49,11 +55,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       !votedPhotoIds.has(photo.photo_id) && photo.user_id !== user_id
     );
 
-    return { statusCode: 200, body: JSON.stringify(unvotedPhotos) };
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(unvotedPhotos) };
   } catch (error) {
     console.error('Error:', error);
     return {
       statusCode: 500,
+      headers: CORS_HEADERS,
       body: JSON.stringify({ error: "Internal server error", message: (error as Error).message })
     };
   }
