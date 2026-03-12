@@ -115,10 +115,3 @@ After deployment, the CDK outputs will print:
 | Lambda runtime | Node.js 24.x |
 | DynamoDB billing | Pay-per-request |
 | S3 access | Private (CloudFront OAC only) |
-
-## CI
-
-GitHub Actions runs the full test suite on every push and pull request. See [`.github/workflows/test.yml`](.github/workflows/test.yml).
-
-To enforce passing tests before merging, enable **branch protection** on `main`:
-> Settings → Branches → Add rule → Require status checks → select `test`
