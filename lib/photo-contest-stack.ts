@@ -75,13 +75,16 @@ export class PhotoContestStack extends cdk.Stack {
     const distribution = new cloudfront.Distribution(this, 'PhotoCDN', {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(photoBucket)
-      }
+      },
+      comment: 'Photo Contest CDN',
     });
+    (distribution.node.defaultChild as cdk.CfnResource).applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
 
     // Cognito for authentication
     const userPool = new cognito.UserPool(this, 'UserPool', {
       selfSignUpEnabled: true,
-      signInAliases: { email: true }
+      signInAliases: { email: true },
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
 
     const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClient', {
