@@ -93,20 +93,35 @@ describe('vote', () => {
     expect(JSON.parse(result.body).error).toMatch(/current month/);
   });
 
-  it('returns 409 when user already voted for the photo', async () => {
+  it('returns 200 when user votes for same photo again (idempotent)', async () => {
     let callCount = 0;
     AWSMock.mock('DynamoDB.DocumentClient', 'get', (_p: any, cb: Function) => {
       cb(null, callCount++ === 0 ? { Item: { user_id: 'u1' } } : { Item: activePhoto });
     });
     AWSMock.mock('DynamoDB.DocumentClient', 'query', (_p: any, cb: Function) =>
-      cb(null, { Items: [{ vote_id: 'v1', user_id: 'u1', photo_id: 'p1' }] })
+      cb(null, { Items: [{ vote_id: 'v1', user_id: 'u1', photo_id: 'p1', timestamp: `${CURRENT_YEAR_MONTH}-05T10:00:00.000Z` }] })
     );
+    const { handler } = require('../lambda/vote');
+    const result = await handler(makeEvent({ user_id: 'u1', photo_id: 'p1' }), mockContext, () => {});
+    expect(result.statusCode).toBe(200);
+    expect(JSON.parse(result.body).message).toMatch(/already registered/);
+  });
+
+  it('returns 200 and changes vote when user votes for different photo', async () => {
+    let callCount = 0;
+    AWSMock.mock('DynamoDB.DocumentClient', 'get', (_p: any, cb: Function) => {
+      cb(null, callCount++ === 0 ? { Item: { user_id: 'u1' } } : { Item: activePhoto });
+    });
+    AWSMock.mock('DynamoDB.DocumentClient', 'query', (_p: any, cb: Function) =>
+      cb(null, { Items: [{ vote_id: 'v1', user_id: 'u1', photo_id: 'p2', timestamp: `${CURRENT_YEAR_MONTH}-05T10:00:00.000Z` }] })
+    );
+    AWSMock.mock('DynamoDB.DocumentClient', 'delete', (_p: any, cb: Function) => cb(null, {}));
     AWSMock.mock('DynamoDB.DocumentClient', 'put', (_p: any, cb: Function) => cb(null, {}));
     AWSMock.mock('DynamoDB.DocumentClient', 'update', (_p: any, cb: Function) => cb(null, {}));
     const { handler } = require('../lambda/vote');
     const result = await handler(makeEvent({ user_id: 'u1', photo_id: 'p1' }), mockContext, () => {});
-    expect(result.statusCode).toBe(409);
-    expect(JSON.parse(result.body).error).toMatch(/already voted/);
+    expect(result.statusCode).toBe(200);
+    expect(JSON.parse(result.body).message).toBe('Vote registered');
   });
 
   it('returns 200 and registers vote successfully', async () => {

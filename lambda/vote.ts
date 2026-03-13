@@ -75,13 +75,36 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }).promise();
 
+    // If user already voted for a different photo this month, remove the old vote
     if (existingVotes.Items && existingVotes.Items.length > 0) {
-      return { statusCode: 409, headers: CORS_HEADERS, body: JSON.stringify({ error: "You have already voted for this photo this month" }) };
+      const oldVote = existingVotes.Items[0];
+
+      // If voting for the same photo, just return success
+      if (oldVote.photo_id === photo_id) {
+        return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ message: "Vote already registered" }) };
+      }
+
+      // Remove the old vote
+      await dynamo.delete({
+        TableName: VOTES_TABLE,
+        Key: { vote_id: oldVote.vote_id }
+      }).promise();
+
+      // Decrement vote count on the old photo
+      await dynamo.update({
+        TableName: PHOTOS_TABLE,
+        Key: { photo_id: oldVote.photo_id },
+        UpdateExpression: 'SET vote_count = if_not_exists(vote_count, :one) - :dec',
+        ExpressionAttributeValues: {
+          ':dec': 1,
+          ':one': 1
+        }
+      }).promise();
     }
 
     const vote_id = `${user_id}-${photo_id}-${Date.now()}`;
 
-    // Record the vote
+    // Record the new vote
     await dynamo.put({
       TableName: VOTES_TABLE,
       Item: {
@@ -92,7 +115,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }).promise();
 
-    // Increment vote count on photo
+    // Increment vote count on the new photo
     await dynamo.update({
       TableName: PHOTOS_TABLE,
       Key: { photo_id },
