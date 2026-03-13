@@ -54,19 +54,29 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: "You can only vote for photos from the current month" }) };
     }
 
-    // Check if user already voted for this photo
+    // Check if user already voted this month
+    // Get start and end of current month for filtering
+    const startOfMonth = `${yearMonth}-01T00:00:00.000Z`;
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const endOfMonth = `${yearMonth}-${String(daysInMonth).padStart(2, '0')}T23:59:59.999Z`;
+
     const existingVotes = await dynamo.query({
       TableName: VOTES_TABLE,
       IndexName: 'user-photo-index',
-      KeyConditionExpression: 'user_id = :user_id AND photo_id = :photo_id',
+      KeyConditionExpression: 'user_id = :user_id',
+      FilterExpression: '#timestamp BETWEEN :start AND :end',
+      ExpressionAttributeNames: {
+        '#timestamp': 'timestamp'
+      },
       ExpressionAttributeValues: {
         ':user_id': user_id,
-        ':photo_id': photo_id
+        ':start': startOfMonth,
+        ':end': endOfMonth
       }
     }).promise();
 
     if (existingVotes.Items && existingVotes.Items.length > 0) {
-      return { statusCode: 409, headers: CORS_HEADERS, body: JSON.stringify({ error: "You have already voted for this photo" }) };
+      return { statusCode: 409, headers: CORS_HEADERS, body: JSON.stringify({ error: "You have already voted for this photo this month" }) };
     }
 
     const vote_id = `${user_id}-${photo_id}-${Date.now()}`;

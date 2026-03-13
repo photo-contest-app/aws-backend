@@ -234,6 +234,17 @@ export class PhotoContestStack extends cdk.Stack {
     });
     photosTable.grantReadData(getPhotoLambda);
 
+    const getPublicPhotosLambda = new NodejsFunction(this, 'GetPublicPhotosLambda', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      entry: path.join(__dirname, '../lambda/get-public-photos.ts'),
+      handler: 'handler',
+      environment: {
+        PHOTOS_TABLE: photosTable.tableName,
+        CDN_URL: `https://${distribution.domainName}`
+      }
+    });
+    photosTable.grantReadData(getPublicPhotosLambda);
+
     const getWinnerLambda = new NodejsFunction(this, 'GetWinnerLambda', {
       runtime: lambda.Runtime.NODEJS_24_X,
       entry: path.join(__dirname, '../lambda/get-winner.ts'),
@@ -308,6 +319,12 @@ export class PhotoContestStack extends cdk.Stack {
       path: '/photos/{id}',
       methods: [apigateway.HttpMethod.GET],
       integration: new integrations.HttpLambdaIntegration('GetPhotoIntegration', getPhotoLambda)
+    });
+
+    httpApi.addRoutes({
+      path: '/public-photos',
+      methods: [apigateway.HttpMethod.GET],
+      integration: new integrations.HttpLambdaIntegration('GetPublicPhotosIntegration', getPublicPhotosLambda)
     });
 
     httpApi.addRoutes({

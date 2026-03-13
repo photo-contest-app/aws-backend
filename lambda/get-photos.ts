@@ -25,6 +25,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const now = new Date();
     const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
+    // Get start and end of current month for filtering votes
+    const startOfMonth = `${yearMonth}-01T00:00:00.000Z`;
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const endOfMonth = `${yearMonth}-${String(daysInMonth).padStart(2, '0')}T23:59:59.999Z`;
+
     // Get all active photos from the current month
     const allActivePhotos = await dynamo.scan({
       TableName: PHOTOS_TABLE,
@@ -38,28 +43,35 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }).promise();
 
-    // Get all votes by this user using the GSI
+    // Get all votes by this user THIS MONTH using the GSI
     const votesResult = await dynamo.query({
       TableName: VOTES_TABLE,
       IndexName: 'user-photo-index',
       KeyConditionExpression: 'user_id = :user_id',
+      FilterExpression: '#timestamp BETWEEN :start AND :end',
+      ExpressionAttributeNames: {
+        '#timestamp': 'timestamp'
+      },
       ExpressionAttributeValues: {
-        ':user_id': user_id
+        ':user_id': user_id,
+        ':start': startOfMonth,
+        ':end': endOfMonth
       }
     }).promise();
 
     // Create a set of photo IDs the user has voted on
     const votedPhotoIds = new Set((votesResult.Items || []).map(vote => vote.photo_id));
 
-    // Filter out photos the user has already voted on, and their own photo
-    const unvotedPhotos = (allActivePhotos.Items || []).filter(photo =>
-      !votedPhotoIds.has(photo.photo_id) && photo.user_id !== user_id
+    // Filter out user's own photo, but keep all other photos (including voted ones)
+    const eligiblePhotos = (allActivePhotos.Items || []).filter(photo =>
+      photo.user_id !== user_id
     );
 
-    // Add CloudFront URL to each photo
-    const photosWithUrls = unvotedPhotos.map(photo => ({
+    // Add CloudFront URL and voted status to each photo
+    const photosWithUrls = eligiblePhotos.map(photo => ({
       ...photo,
-      image_url: `${CDN_URL}/${photo.s3_key}`
+      image_url: `${CDN_URL}/${photo.s3_key}`,
+      voted: votedPhotoIds.has(photo.photo_id)
     }));
 
     return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(photosWithUrls) };
