@@ -30,7 +30,7 @@ describe('get-photos', () => {
     expect(JSON.parse(result.body).error).toMatch(/required/);
   });
 
-  it('returns photos filtered by voted and own photos', async () => {
+  it('returns photos filtered by own photos with voted status', async () => {
     const photos = [
       { photo_id: 'p1', user_id: 'user-1', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-01T10:00:00.000Z`, s3_key: 'photos/p1.jpg' },
       { photo_id: 'p2', user_id: 'user-2', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-02T10:00:00.000Z`, s3_key: 'photos/p2.jpg' },
@@ -44,15 +44,19 @@ describe('get-photos', () => {
     const result = await handler(mockEvent('user-1'), mockContext, () => {});
     expect(result.statusCode).toBe(200);
     const body = JSON.parse(result.body);
-    expect(body).toHaveLength(1);
-    expect(body[0].photo_id).toBe('p3');
-    expect(body[0].image_url).toBe('https://test-cdn.cloudfront.net/photos/p3.jpg');
+    expect(body).toHaveLength(2); // p2 and p3 (p1 is filtered out as it's user's own photo)
+    expect(body[0].photo_id).toBe('p2');
+    expect(body[0].voted).toBe(true);
+    expect(body[0].image_url).toBe('https://test-cdn.cloudfront.net/photos/p2.jpg');
+    expect(body[1].photo_id).toBe('p3');
+    expect(body[1].voted).toBe(false);
+    expect(body[1].image_url).toBe('https://test-cdn.cloudfront.net/photos/p3.jpg');
   });
 
-  it('returns empty array when all photos are voted or own', async () => {
+  it('returns only voted photos when user has voted on all other photos', async () => {
     const photos = [
-      { photo_id: 'p1', user_id: 'user-1', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-01T10:00:00.000Z` },
-      { photo_id: 'p2', user_id: 'user-2', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-02T10:00:00.000Z` },
+      { photo_id: 'p1', user_id: 'user-1', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-01T10:00:00.000Z`, s3_key: 'photos/p1.jpg' },
+      { photo_id: 'p2', user_id: 'user-2', status: 'active', upload_timestamp: `${CURRENT_YEAR_MONTH}-02T10:00:00.000Z`, s3_key: 'photos/p2.jpg' },
     ];
     AWSMock.mock('DynamoDB.DocumentClient', 'scan', (_p: any, cb: Function) => cb(null, { Items: photos }));
     AWSMock.mock('DynamoDB.DocumentClient', 'query', (_p: any, cb: Function) =>
@@ -61,7 +65,10 @@ describe('get-photos', () => {
     const { handler } = require('../lambda/get-photos');
     const result = await handler(mockEvent('user-1'), mockContext, () => {});
     expect(result.statusCode).toBe(200);
-    expect(JSON.parse(result.body)).toHaveLength(0);
+    const body = JSON.parse(result.body);
+    expect(body).toHaveLength(1); // p2 with voted: true (p1 is user's own photo)
+    expect(body[0].photo_id).toBe('p2');
+    expect(body[0].voted).toBe(true);
   });
 
   it('returns 500 on DynamoDB error', async () => {
