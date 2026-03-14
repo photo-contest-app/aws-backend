@@ -61,13 +61,17 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     // Create a set of photo IDs the user has voted on
     const votedPhotoIds = new Set((votesResult.Items || []).map(vote => vote.photo_id));
-
     // Filter out user's own photo, but keep all other photos (including voted ones)
     const eligiblePhotos = (allActivePhotos.Items || []).filter(photo =>
       photo.user_id !== user_id
     );
 
     // Add CloudFront URL and voted status to each photo
+    // Sort by upload_timestamp descending (latest first)
+    eligiblePhotos.sort((a, b) => {
+      return b.upload_timestamp.localeCompare(a.upload_timestamp);
+    });
+
     const photosWithUrls = eligiblePhotos.map(photo => ({
       ...photo,
       image_url: `${CDN_URL}/${photo.s3_key}`,
