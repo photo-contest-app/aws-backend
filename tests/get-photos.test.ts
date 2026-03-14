@@ -45,9 +45,11 @@ describe('get-photos', () => {
     expect(result.statusCode).toBe(200);
     const body = JSON.parse(result.body);
     expect(body).toHaveLength(2); // p2 and p3 (p1 is filtered out as it's user's own photo)
-    expect(body[0].photo_id).toBe('p2');
-    expect(body[0].voted).toBe(true);
-    expect(body[0].image_url).toBe('https://test-cdn.cloudfront.net/photos/p2.jpg');
+    // Photos should be sorted by timestamp descending (latest first)
+    expect(body[0].photo_id).toBe('p3'); // Latest (03) comes first
+    expect(body[1].photo_id).toBe('p2'); // Earlier (02) comes second
+    expect(body[1].voted).toBe(true); // p2 is voted
+    expect(body[0].image_url).toBe('https://test-cdn.cloudfront.net/photos/p3.jpg');
     expect(body[1].photo_id).toBe('p3');
     expect(body[1].voted).toBe(false);
     expect(body[1].image_url).toBe('https://test-cdn.cloudfront.net/photos/p3.jpg');

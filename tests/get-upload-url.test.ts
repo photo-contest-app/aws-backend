@@ -18,7 +18,8 @@ beforeEach(() => {
 
 afterEach(() => {
   AWSMock.restore('DynamoDB.DocumentClient');
-  AWSMock.restore('S3');
+  // Don't restore S3 since we're using jest.fn() for getSignedUrl
+  jest.clearAllMocks();
 });
 
 describe('get-upload-url', () => {
