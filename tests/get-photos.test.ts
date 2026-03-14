@@ -47,12 +47,11 @@ describe('get-photos', () => {
     expect(body).toHaveLength(2); // p2 and p3 (p1 is filtered out as it's user's own photo)
     // Photos should be sorted by timestamp descending (latest first)
     expect(body[0].photo_id).toBe('p3'); // Latest (03) comes first
+    expect(body[0].voted).toBe(false);
+    expect(body[0].image_url).toBe('https://test-cdn.cloudfront.net/photos/p3.jpg');
     expect(body[1].photo_id).toBe('p2'); // Earlier (02) comes second
     expect(body[1].voted).toBe(true); // p2 is voted
-    expect(body[0].image_url).toBe('https://test-cdn.cloudfront.net/photos/p3.jpg');
-    expect(body[1].photo_id).toBe('p3');
-    expect(body[1].voted).toBe(false);
-    expect(body[1].image_url).toBe('https://test-cdn.cloudfront.net/photos/p3.jpg');
+    expect(body[1].image_url).toBe('https://test-cdn.cloudfront.net/photos/p2.jpg');
   });
 
   it('returns only voted photos when user has voted on all other photos', async () => {
