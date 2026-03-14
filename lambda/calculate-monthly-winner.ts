@@ -32,12 +32,23 @@ export const handler = async () => {
   })[0];
 
   if (winner) {
+    // Fetch user information
+    const userResult = await dynamo.get({
+      TableName: process.env.USERS_TABLE!,
+      Key: { user_id: winner.user_id }
+    }).promise();
+
+    const user = userResult.Item;
+
     await dynamo.put({
       TableName: process.env.WINNERS_TABLE!,
       Item: {
         month_year: monthYear,
-        photo_id: winner.photo_id,
         user_id: winner.user_id,
+        first_name: user?.first_name || '',
+        last_name: user?.last_name || '',
+        photo_id: winner.photo_id,
+        photo_s3_url: winner.s3_key,
         title: winner.title,
         vote_count: winner.vote_count,
         calculated_at: new Date().toISOString()

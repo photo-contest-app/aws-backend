@@ -340,11 +340,13 @@ export class PhotoContestStack extends cdk.Stack {
       handler: 'handler',
       environment: {
         PHOTOS_TABLE: photosTable.tableName,
+        USERS_TABLE: usersTable.tableName,
         WINNERS_TABLE: winnersTable.tableName
       }
     });
 
     photosTable.grantReadWriteData(calculateMonthlyWinnerLambda);
+    usersTable.grantReadData(calculateMonthlyWinnerLambda);
     winnersTable.grantWriteData(calculateMonthlyWinnerLambda);
 
     // Schedule Lambda to run on 1st day of each month at 00:00 UTC

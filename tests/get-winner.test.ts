@@ -29,7 +29,16 @@ describe('get-winner', () => {
   });
 
   it('returns 200 with winner data for last month key', async () => {
-    const winner = { month_year: LAST_MONTH_YEAR, photo_id: 'p1', user_id: 'u1', vote_count: 10, s3_key: 'photos/p1.jpg' };
+    const winner = {
+      month_year: LAST_MONTH_YEAR,
+      photo_id: 'p1',
+      user_id: 'u1',
+      first_name: 'John',
+      last_name: 'Doe',
+      vote_count: 10,
+      photo_s3_url: 'photos/p1.jpg',
+      s3_key: 'photos/p1.jpg' // For backward compatibility
+    };
     AWSMock.mock('DynamoDB.DocumentClient', 'get', (params: any, cb: Function) => {
       expect(params.Key.month_year).toBe(LAST_MONTH_YEAR);
       cb(null, { Item: winner });
@@ -40,6 +49,8 @@ describe('get-winner', () => {
     const body = JSON.parse(result.body);
     expect(body).toMatchObject(winner);
     expect(body.image_url).toBe('https://test-cdn.cloudfront.net/photos/p1.jpg');
+    expect(body.first_name).toBe('John');
+    expect(body.last_name).toBe('Doe');
   });
 
   it('returns 500 on DynamoDB error', async () => {

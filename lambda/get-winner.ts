@@ -32,7 +32,7 @@ export const handler: APIGatewayProxyHandler = async () => {
     // Add CloudFront URL to winner photo
     const winnerWithUrl = {
       ...result.Item,
-      image_url: `${CDN_URL}/${result.Item.s3_key}`
+      image_url: `${CDN_URL}/${result.Item.photo_s3_url || result.Item.s3_key}`
     };
 
     return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(winnerWithUrl) };
