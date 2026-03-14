@@ -347,9 +347,9 @@ export class PhotoContestStack extends cdk.Stack {
     photosTable.grantReadWriteData(calculateMonthlyWinnerLambda);
     winnersTable.grantWriteData(calculateMonthlyWinnerLambda);
 
-    // Schedule Lambda to run on 8th day of each month at 00:00 UTC
+    // Schedule Lambda to run on 1st day of each month at 00:00 UTC
     new events.Rule(this, 'MonthlyWinnerRule', {
-      schedule: events.Schedule.cron({ minute: '0', hour: '0', day: '8', month: '*', year: '*' }),
+      schedule: events.Schedule.cron({ minute: '0', hour: '0', day: '1', month: '*', year: '*' }),
       targets: [new targets.LambdaFunction(calculateMonthlyWinnerLambda)]
     });
 
