@@ -7,6 +7,7 @@ import * as apigateway from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
@@ -70,7 +71,27 @@ export class PhotoContestStack extends cdk.Stack {
       publicReadAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true
+      autoDeleteObjects: true,
+      cors: [
+        {
+          allowedMethods: [
+            s3.HttpMethods.GET,
+            s3.HttpMethods.PUT,
+            s3.HttpMethods.POST,
+            s3.HttpMethods.DELETE,
+            s3.HttpMethods.HEAD
+          ],
+          allowedOrigins: ['*'], // In production, restrict to your domain
+          allowedHeaders: ['*'],
+          exposedHeaders: [
+            'ETag',
+            'x-amz-server-side-encryption',
+            'x-amz-request-id',
+            'x-amz-id-2'
+          ],
+          maxAge: 3000
+        }
+      ]
     });
 
     // CloudFront for CDN
@@ -196,6 +217,62 @@ export class PhotoContestStack extends cdk.Stack {
     usersTable.grantReadData(submitPhotoLambda);
     photoBucket.grantPut(submitPhotoLambda);
 
+    // Lambda for generating presigned upload URLs (replaces submit-photo for large files)
+    const getUploadUrlLambda = new NodejsFunction(this, 'GetUploadUrlLambda', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      entry: path.join(__dirname, '../lambda/get-upload-url.ts'),
+      handler: 'handler',
+      environment: {
+        PHOTOS_TABLE: photosTable.tableName,
+        USERS_TABLE: usersTable.tableName,
+        BUCKET: photoBucket.bucketName
+      }
+    });
+    photosTable.grantReadWriteData(getUploadUrlLambda);
+    usersTable.grantReadData(getUploadUrlLambda);
+    photoBucket.grantPut(getUploadUrlLambda);
+
+    // Lambda for processing uploaded images (triggered by S3)
+    const processUploadLambda = new NodejsFunction(this, 'ProcessUploadLambda', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      entry: path.join(__dirname, '../lambda/process-upload.ts'),
+      handler: 'handler',
+      environment: {
+        PHOTOS_TABLE: photosTable.tableName,
+        BUCKET: photoBucket.bucketName
+      },
+      bundling: {
+        nodeModules: ['sharp'],
+        forceDockerBundling: true,
+        commandHooks: {
+          beforeBundling(_inputDir: string, _outputDir: string): string[] {
+            return [];
+          },
+          beforeInstall(_inputDir: string, _outputDir: string): string[] {
+            return [];
+          },
+          afterBundling(_inputDir: string, _outputDir: string): string[] {
+            return [
+              'cd /asset-output',
+              'rm -rf node_modules/sharp',
+              'npm install --arch=x64 --platform=linux --libc=glibc sharp'
+            ];
+          }
+        }
+      },
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(60)
+    });
+    photosTable.grantReadWriteData(processUploadLambda);
+    photoBucket.grantReadWrite(processUploadLambda);
+
+    // Add S3 event notification to trigger processing Lambda
+    photoBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.LambdaDestination(processUploadLambda),
+      { prefix: 'uploads/' }
+    );
+
     const voteLambda = new NodejsFunction(this, 'VoteLambda', {
       runtime: lambda.Runtime.NODEJS_24_X,
       entry: path.join(__dirname, '../lambda/vote.ts'),
@@ -293,6 +370,13 @@ export class PhotoContestStack extends cdk.Stack {
       path: '/verify',
       methods: [apigateway.HttpMethod.POST],
       integration: new integrations.HttpLambdaIntegration('VerifyIntegration', verifyLambda)
+    });
+
+    httpApi.addRoutes({
+      path: '/get-upload-url',
+      methods: [apigateway.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('GetUploadUrlIntegration', getUploadUrlLambda),
+      authorizer
     });
 
     httpApi.addRoutes({
