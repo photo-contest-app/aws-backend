@@ -182,6 +182,32 @@ export class PhotoContestStack extends cdk.Stack {
       resources: [userPool.userPoolArn]
     }));
 
+    const forgotPasswordLambda = new NodejsFunction(this, 'ForgotPasswordLambda', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      entry: path.join(__dirname, '../lambda/forgot-password.ts'),
+      handler: 'handler',
+      environment: {
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId
+      }
+    });
+    forgotPasswordLambda.addToRolePolicy(new cdk.aws_iam.PolicyStatement({
+      actions: ['cognito-idp:ForgotPassword'],
+      resources: [userPool.userPoolArn]
+    }));
+
+    const resetPasswordLambda = new NodejsFunction(this, 'ResetPasswordLambda', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      entry: path.join(__dirname, '../lambda/reset-password.ts'),
+      handler: 'handler',
+      environment: {
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId
+      }
+    });
+    resetPasswordLambda.addToRolePolicy(new cdk.aws_iam.PolicyStatement({
+      actions: ['cognito-idp:ConfirmForgotPassword'],
+      resources: [userPool.userPoolArn]
+    }));
+
     const submitPhotoLambda = new NodejsFunction(this, 'SubmitPhotoLambda', {
       runtime: lambda.Runtime.NODEJS_24_X,
       entry: path.join(__dirname, '../lambda/submit-photo.ts'),
@@ -370,6 +396,18 @@ export class PhotoContestStack extends cdk.Stack {
       path: '/verify',
       methods: [apigateway.HttpMethod.POST],
       integration: new integrations.HttpLambdaIntegration('VerifyIntegration', verifyLambda)
+    });
+
+    httpApi.addRoutes({
+      path: '/forgot-password',
+      methods: [apigateway.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('ForgotPasswordIntegration', forgotPasswordLambda)
+    });
+
+    httpApi.addRoutes({
+      path: '/reset-password',
+      methods: [apigateway.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('ResetPasswordIntegration', resetPasswordLambda)
     });
 
     httpApi.addRoutes({
